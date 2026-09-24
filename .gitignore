@@ -1,0 +1,21 @@
+# Variáveis de ambiente e credenciais locais.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Artefatos gerados por Go e Docker.
+/bin/
+/out/
+*.test
+coverage.out
+coverage.html
+
+# Arquivos temporários de editores e do sistema operacional.
+.DS_Store
+*.swp
+*.tmp
+
