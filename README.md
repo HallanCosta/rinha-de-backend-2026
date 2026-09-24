@@ -1,6 +1,6 @@
 # Rinha de Backend 2026 – Fraud Detection
 
-![cover](/misc/cover.png)
+![cover](./misc/cover.png)
 
 [Português](#português) · [English](#english)
 
