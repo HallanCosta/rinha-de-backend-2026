@@ -1,0 +1,78 @@
+# Serviços que formam a topologia local da aplicação.
+services:
+  # Primeira instância da API.
+  api-1:
+    # O Dockerfile é usado para construir a imagem local da API.
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Nome local da imagem gerada pelo build.
+    image: rinha-backend-2026-api:local
+    # Mantém o ambiente compatível com o executor da Rinha.
+    platform: linux/amd64
+    # Identificador usado nos logs e no header de teste.
+    environment:
+      API_INSTANCE: api-1
+    # Disponível para outros containers, mas não diretamente no host.
+    expose:
+      - "9999"
+    # Limite individual de recursos desta instância.
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 120M
+    # Conecta a API à rede privada compartilhada com o Nginx.
+    networks:
+      - rinha
+
+  # Segunda instância da API, usada para distribuir a carga.
+  api-2:
+    # Usa o mesmo código e a mesma imagem-base da api-1.
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: rinha-backend-2026-api:local
+    platform: linux/amd64
+    # Permite distinguir esta instância durante os testes.
+    environment:
+      API_INSTANCE: api-2
+    expose:
+      - "9999"
+    # Limite individual de recursos desta instância.
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 120M
+    networks:
+      - rinha
+
+  # Load balancer público; ele não contém lógica de negócio.
+  load-balancer:
+    image: nginx:1.27-alpine
+    platform: linux/amd64
+    # Expõe a porta 9999 do Nginx no host.
+    ports:
+      - "9999:9999"
+    # Substitui a configuração padrão pelo nosso nginx.conf.
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    # Controla a ordem de inicialização dos serviços.
+    # Isso não substitui um healthcheck de prontidão.
+    depends_on:
+      - api-1
+      - api-2
+    # Limite individual de recursos do load balancer.
+    deploy:
+      resources:
+        limits:
+          cpus: "0.10"
+          memory: 50M
+    networks:
+      - rinha
+
+# Rede privada compartilhada entre o Nginx e as duas APIs.
+networks:
+  rinha:
+    driver: bridge
