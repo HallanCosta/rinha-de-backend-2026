@@ -49,9 +49,10 @@ O benchmark interno da busca usa o dataset oficial e deve ser executado com
 uma única iteração, porque o carregamento do dataset acontece uma vez por API:
 
 ```bash
-docker run --rm -v "$PWD":/src -w /src golang:1.24 \
+docker run --rm -e GOEXPERIMENT=simd -e GOAMD64=v3 \
+  -v "$PWD":/src -w /src golang:1.26 \
   go test ./internal/search -run '^$' \
-  -bench '^BenchmarkBruteForceTopKOfficial$' -benchtime=1x
+  -bench '^Benchmark(BruteForce|KDTree)TopKOfficial$' -benchtime=1x
 ```
 
 ## Parar e limpar

@@ -19,12 +19,18 @@ type Vectorizer interface {
 // Depois de criado, seus metadados são somente leitura e podem ser
 // compartilhados por todas as requisições da instância.
 type Engine struct {
-	metadata dataset.Metadata
+	metadata        dataset.Metadata
+	validationError error
 }
 
 // New cria um vectorizer com os metadados carregados no startup.
 func New(metadata dataset.Metadata) *Engine {
-	return &Engine{metadata: metadata}
+	// A validação acontece uma vez no bootstrap. Repeti-la para cada request
+	// desperdiçaria trabalho em um caminho que só lê metadados imutáveis.
+	return &Engine{
+		metadata:        metadata,
+		validationError: validateNormalization(metadata.Normalization),
+	}
 }
 
 // Vectorize aplica as fórmulas de regra de detecção na ordem exata do
@@ -33,8 +39,8 @@ func (e *Engine) Vectorize(request model.FraudRequest) (model.Vector, error) {
 	if e == nil {
 		return model.Vector{}, fmt.Errorf("vectorizer is nil")
 	}
-	if err := validateNormalization(e.metadata.Normalization); err != nil {
-		return model.Vector{}, err
+	if e.validationError != nil {
+		return model.Vector{}, e.validationError
 	}
 
 	transaction := request.Transaction

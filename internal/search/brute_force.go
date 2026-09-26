@@ -131,12 +131,46 @@ func (s *BruteForce) topKViaOutputParameter(ctx context.Context, query model.Vec
 
 func pushCandidate(candidates *candidateHeap, value candidate, k int) {
 	if candidates.Len() < k {
-		heap.Push(candidates, value)
+		*candidates = append(*candidates, value)
+		siftCandidateUp(*candidates, candidates.Len()-1)
 		return
 	}
 	if candidateLess(value, (*candidates)[0]) {
 		(*candidates)[0] = value
-		heap.Fix(candidates, 0)
+		siftCandidateDown(*candidates, 0)
+	}
+}
+
+// O heap tem sempre no topo o pior dos k candidatos. Como k é cinco no caso
+// de uso da Rinha, manter os dois movimentos manualmente evita as interfaces
+// genéricas de container/heap em milhares de iterações por request.
+func siftCandidateUp(candidates candidateHeap, position int) {
+	for position > 0 {
+		parent := (position - 1) / 2
+		if !candidates.Less(position, parent) {
+			return
+		}
+		candidates.Swap(position, parent)
+		position = parent
+	}
+}
+
+func siftCandidateDown(candidates candidateHeap, position int) {
+	for {
+		left := position*2 + 1
+		if left >= len(candidates) {
+			return
+		}
+		worst := left
+		right := left + 1
+		if right < len(candidates) && candidates.Less(right, left) {
+			worst = right
+		}
+		if !candidates.Less(worst, position) {
+			return
+		}
+		candidates.Swap(position, worst)
+		position = worst
 	}
 }
 

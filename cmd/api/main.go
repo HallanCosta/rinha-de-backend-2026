@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
+	"runtime/debug"
 	"syscall"
 	"time"
 
@@ -41,7 +43,14 @@ func main() {
 	}
 
 	vectorizerEngine := vectorizer.New(loaded.Metadata)
-	searcher := search.NewBruteForce(loaded.References)
+	searcher, err := search.NewKDTreeWithVisitLimit(loaded.References, 2048)
+	if err != nil {
+		log.Fatalf("build fraud KD-tree index: %v", err)
+	}
+	// O índice é construído antes de aceitar tráfego. Forçamos a coleta para
+	// devolver ao sistema a memória temporária usada durante o carregamento.
+	runtime.GC()
+	debug.FreeOSMemory()
 	scorer := rules.New(vectorizerEngine, searcher)
 
 	instance := envOrDefault("API_INSTANCE", "api-local")

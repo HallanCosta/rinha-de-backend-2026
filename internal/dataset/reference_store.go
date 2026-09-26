@@ -97,21 +97,36 @@ func (s *MemoryReferenceStore) At(index int, dst *model.Vector) (model.Label, bo
 	return label, true
 }
 
-// AtValue é a variante sem parâmetro de saída usada pelo caminho otimizado da
-// busca. O array fixo é devolvido por valor e não cria uma alocação por item.
-func (s *MemoryReferenceStore) AtValue(index int) (model.Vector, model.Label, bool) {
+// PackedAt devolve a representação quantizada de uma referência sem
+// descompactar seus 14 valores para float64. A KD-tree usa esse caminho para
+// comparar o eixo de corte durante a busca sem criar uma cópia grande do
+// dataset no índice.
+func (s *MemoryReferenceStore) PackedAt(index int) (PackedVector, model.Label, bool) {
 	if s == nil || index < 0 || index >= s.length {
-		return model.Vector{}, "", false
+		return PackedVector{}, "", false
 	}
 
 	chunk := &s.chunks[index/referenceChunkSize]
 	position := index % referenceChunkSize
 	base := position * model.VectorDimensions
-	var vector model.Vector
-	for dimension := range vector {
-		vector[dimension] = decodeValue(chunk.vectors[base+dimension])
-	}
+	var vector PackedVector
+	copy(vector[:], chunk.vectors[base:base+model.VectorDimensions])
 	return vector, decodeLabel(chunk.labels[position]), true
+}
+
+// AtValue é a variante sem parâmetro de saída usada pelo caminho otimizado da
+// busca. O array fixo é devolvido por valor e não cria uma alocação por item.
+func (s *MemoryReferenceStore) AtValue(index int) (model.Vector, model.Label, bool) {
+	packed, label, ok := s.PackedAt(index)
+	if !ok {
+		return model.Vector{}, "", false
+	}
+
+	var vector model.Vector
+	for dimension, value := range packed {
+		vector[dimension] = decodeValue(value)
+	}
+	return vector, label, true
 }
 
 // DistanceKeyAt calcula a distância quantizada diretamente no bloco, sem
@@ -152,12 +167,7 @@ func PackedDistanceSquared(left, right PackedVector) float64 {
 // Como todos os candidatos usam a mesma escala, comparar essa chave preserva
 // a ordenação e deixa a conversão para float64 somente nos cinco resultados.
 func PackedDistanceKey(left, right PackedVector) uint64 {
-	var sum uint64
-	for dimension := range left {
-		difference := packedDifferenceKey(left[dimension], right[dimension])
-		sum += uint64(difference * difference)
-	}
-	return sum
+	return packedDistanceKey(left, right)
 }
 
 func packedDifferenceKey(left, right uint16) int64 {

@@ -13,6 +13,9 @@ services:
     # Identificador usado nos logs e no header de teste.
     environment:
       API_INSTANCE: api-1
+      # Uma API limitada a 0,25 CPU deve usar um P lógico; isso evita
+      # contenção do scheduler e pausas de GC entre vários workers.
+      GOMAXPROCS: "1"
     # Disponível para outros containers, mas não diretamente no host.
     expose:
       - "9999"
@@ -37,6 +40,7 @@ services:
     # Permite distinguir esta instância durante os testes.
     environment:
       API_INSTANCE: api-2
+      GOMAXPROCS: "1"
     expose:
       - "9999"
     # Limite individual de recursos desta instância.

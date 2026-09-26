@@ -3,7 +3,10 @@
 
 # Primeira etapa: usamos Go apenas para compilar a aplicação.
 # A plataforma AMD64 é a exigida pelo ambiente da Rinha.
-FROM --platform=linux/amd64 golang:1.24-alpine AS build
+FROM --platform=linux/amd64 golang:1.26-alpine AS build
+
+# v3 habilita as instruções AVX2 disponíveis no ambiente de benchmark.
+ENV GOAMD64=v3
 
 # Diretório de trabalho dentro do container de build.
 WORKDIR /src
@@ -18,7 +21,7 @@ COPY resources ./resources
 
 # Gera um binário Linux/AMD64 estático e menor.
 # CGO desabilitado permite executar o binário em uma imagem scratch.
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+RUN CGO_ENABLED=0 GOEXPERIMENT=simd GOOS=linux GOARCH=amd64 GOAMD64=v3 \
     go build -trimpath -ldflags="-s -w" -o /out/api ./cmd/api
 
 # Segunda etapa: imagem final mínima, sem compilador nem shell.

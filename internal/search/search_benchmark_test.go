@@ -27,6 +27,27 @@ func BenchmarkBruteForceTopKOfficial(b *testing.B) {
 	}
 }
 
+func BenchmarkKDTreeTopKOfficial(b *testing.B) {
+	store, err := dataset.LoadReferences(context.Background(), filepath.Join("..", "..", "resources", "references.json.gz"))
+	if err != nil {
+		b.Fatalf("load official references: %v", err)
+	}
+	searcher, err := NewKDTree(store)
+	if err != nil {
+		b.Fatalf("build kd-tree: %v", err)
+	}
+	query := model.Vector{0.0041, 0.1667, 0.05, 0.7826, 0.3333, -1, -1, 0.0292, 0.15, 0, 1, 0, 0.15, 0.006}
+
+	b.ReportMetric(float64(store.Len()), "references")
+	b.ReportAllocs()
+	b.ResetTimer()
+	for index := 0; index < b.N; index++ {
+		if _, err := searcher.TopK(context.Background(), query, 5); err != nil {
+			b.Fatalf("top k: %v", err)
+		}
+	}
+}
+
 func BenchmarkBruteForceTopKOfficialParallel(b *testing.B) {
 	store, err := dataset.LoadReferences(context.Background(), filepath.Join("..", "..", "resources", "references.json.gz"))
 	if err != nil {
